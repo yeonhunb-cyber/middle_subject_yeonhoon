@@ -8,15 +8,14 @@ EXAMPLES = [
     "헬륨", "네온", "불소"
 ]
 
-# ELEMENTS_ORDERED: (symbol, period)
-ELEMENTS_ORDERED = [
-    ("H", 1), ("He", 1),
-    ("Li", 2), ("Be", 2), ("B", 2), ("C", 2), ("N", 2), ("O", 2), ("F", 2), ("Ne", 2),
-    ("Na", 3), ("Mg", 3), ("Al", 3), ("Si", 3), ("P", 3), ("S", 3), ("Cl", 3), ("Ar", 3),
-    ("K", 4), ("Ca", 4), ("Fe", 4)
+# ELEMENTS_POS: (symbol, period, column_index)
+ELEMENTS_POS = [
+    ("H", 1, 0),   ("He", 1, 7),
+    ("Li", 2, 0),  ("Be", 2, 1),  ("B", 2, 2),  ("C", 2, 3),  ("N", 2, 4),  ("O", 2, 5),  ("F", 2, 6),  ("Ne", 2, 7),
+    ("Na", 3, 0),  ("Mg", 3, 1),  ("Al", 3, 2), ("Si", 3, 3), ("P", 3, 4),  ("S", 3, 5),  ("Cl", 3, 6), ("Ar", 3, 7),
+    ("K", 4, 0),   ("Ca", 4, 1),  ("Fe", 4, 2)
 ]
 
-# 정답 매핑
 ANSWERS = {
     "물": ["H", "O"],
     "포도당": ["C", "H", "O"],
@@ -40,7 +39,6 @@ ANSWERS = {
     "불소": ["F"]
 }
 
-# 화학식 및 간단한 성질 정보
 COMPOUND_INFO = {
     "물": {"formula": "H₂O", "props": "무색·무취의 액체, 좋은 용매"},
     "포도당": {"formula": "C₆H₁₂O₆", "props": "단당류, 에너지원"},
@@ -87,7 +85,8 @@ def examples_page():
     col1, col2 = st.columns(2)
     with col1:
         if st.button("시험 시작", key="start_exam_btn"):
-            st.session_state["quiz_items"] = random.sample(EXAMPLES, k=3)
+            # 첫 번째 시험 문제 8문제로 설정
+            st.session_state["quiz_items"] = random.sample(EXAMPLES, k=8)
             st.session_state["selections"] = {q: [] for q in st.session_state["quiz_items"]}
             st.session_state["submitted"] = False
             st.session_state["results"] = {}
@@ -97,11 +96,10 @@ def examples_page():
             st.session_state["page"] = "start"
 
 def _nowrap(sym: str) -> str:
-    # 문자 사이에 WORD JOINER(U+2060)를 넣어 줄바꿈 방지
     return "\u2060".join(list(sym))
 
 def quiz_page():
-    st.header("시험 — 구성 원소 선택 (주기별 연속 배치)")
+    st.header("시험 1 — 구성 원소 선택 (8문제)")
     quiz_items = st.session_state.get("quiz_items", [])
     if not quiz_items:
         st.write("선택된 문제가 없습니다. 처음으로 돌아가세요.")
@@ -110,34 +108,31 @@ def quiz_page():
         return
 
     periods = [1, 2, 3, 4]
+    max_cols = max(col for (_, _, col) in ELEMENTS_POS) + 1
+    indexed_elements = list(enumerate(ELEMENTS_POS, start=1))
 
     for compound in quiz_items:
         st.subheader(compound)
         safe = "".join(ch if ch.isalnum() else "_" for ch in compound)
-
-        # 각 주기(period)마다 그 주기에 속한 원소만 연속 배열 (공백 없음)
         for period in periods:
-            elems = [(idx, sym) for idx, (sym, p) in enumerate(ELEMENTS_ORDERED, start=1) if p == period]
-            if not elems:
-                continue
-            cols = st.columns(len(elems))
-            for col, (idx, sym) in zip(cols, elems):
+            cols = st.columns(max_cols)
+            for idx, (sym, p, col) in indexed_elements:
+                if p != period:
+                    continue
                 key = f"chk_{safe}_{idx}"
                 label = _nowrap(sym)
-                with col:
+                with cols[col]:
                     st.checkbox(label, key=key)
-
         st.write("---")
-
         # selections 업데이트
         selected = []
-        for idx, (sym, _) in enumerate(ELEMENTS_ORDERED, start=1):
+        for idx, (sym, _, _) in indexed_elements:
             key = f"chk_{safe}_{idx}"
             if st.session_state.get(key, False):
                 selected.append(sym)
         st.session_state.setdefault("selections", {})[compound] = selected
 
-    cols = st.columns(3)
+    cols = st.columns(4)
     with cols[0]:
         if st.button("제출", key="submit_exam"):
             results = {}
@@ -151,47 +146,50 @@ def quiz_page():
                 results[compound] = {"chosen": sorted(chosen), "expected": sorted(expected), "correct": correct}
             st.session_state["results"] = results
             st.session_state["submitted"] = True
-
-            # 개별 결과와 추가 정보 표시
-            for compound, info in results.items():
-                if info["correct"]:
-                    st.success(f"{compound} — 정답입니다! 🎉")
-                    info_data = COMPOUND_INFO.get(compound)
-                    if info_data:
-                        st.write(f"화학식: {info_data['formula']}")
-                        st.write(f"성질: {info_data['props']}")
-                    try:
-                        st.balloons()
-                    except Exception:
-                        pass
-                else:
-                    st.error(f"{compound} — 오답. 선택: {', '.join(info['chosen']) if info['chosen'] else '선택 없음'} | 정답: {', '.join(info['expected']) if info['expected'] else '정답 미등록'}")
-            # 전체 세레머니
+            # 피드백
             if all_correct:
+                st.success("모두 정답입니다! 🎉")
                 try:
                     st.balloons()
                 except Exception:
                     pass
             else:
-                try:
-                    st.snow()
-                except Exception:
-                    pass
+                st.warning("몇 개의 문제가 틀렸습니다. 다음 페이지로 넘어가서 특징 문제를 풀어보세요.")
     with cols[1]:
         if st.button("다시 풀기(재선택)", key="redo_exam"):
             for compound in quiz_items:
                 safe = "".join(ch if ch.isalnum() else "_" for ch in compound)
-                for idx in range(1, len(ELEMENTS_ORDERED) + 1):
+                for idx in range(1, len(ELEMENTS_POS) + 1):
                     key = f"chk_{safe}_{idx}"
                     st.session_state[key] = False
             st.session_state["selections"] = {q: [] for q in quiz_items}
             st.session_state["submitted"] = False
             st.session_state["results"] = {}
     with cols[2]:
+        # 다음 페이지로 넘어가는 버튼: 20개 중 랜덤으로 8개 선택하여 특징 문제 준비
+        if st.button("다음 페이지 — 특징 문제", key="to_features"):
+            st.session_state["feature_items"] = random.sample(EXAMPLES, k=8)
+            # prepare options and empty answers
+            st.session_state["feature_options"] = {}
+            all_props = [info["props"] for info in COMPOUND_INFO.values()]
+            for comp in st.session_state["feature_items"]:
+                correct = COMPOUND_INFO.get(comp, {}).get("props", "정보 없음")
+                distractors = [p for p in all_props if p != correct]
+                if len(distractors) >= 4:
+                    opts = random.sample(distractors, k=4)
+                else:
+                    opts = distractors + ["일반적인 무기물", "무색·무취", "정보 없음", "반응성 높음"]
+                    opts = opts[:4]
+                opts.append(correct)
+                random.shuffle(opts)
+                st.session_state["feature_options"][comp] = opts
+            st.session_state["feature_answers"] = {comp: None for comp in st.session_state["feature_items"]}
+            st.session_state["page"] = "features"
+    with cols[3]:
         if st.button("처음으로", key="quiz_to_start"):
             for compound in st.session_state.get("quiz_items", []):
                 safe = "".join(ch if ch.isalnum() else "_" for ch in compound)
-                for idx in range(1, len(ELEMENTS_ORDERED) + 1):
+                for idx in range(1, len(ELEMENTS_POS) + 1):
                     key = f"chk_{safe}_{idx}"
                     if key in st.session_state:
                         del st.session_state[key]
@@ -208,16 +206,89 @@ def quiz_page():
             else:
                 st.error(f"{compound}: 오답 (정답: {', '.join(info['expected'])})")
 
+def features_page():
+    st.header("시험 2 — 특징 맞추기 (5지선다 × 8문제)")
+    items = st.session_state.get("feature_items", [])
+    if not items:
+        st.write("문제가 준비되지 않았습니다. 처음으로 돌아가세요.")
+        if st.button("처음으로", key="features_no_items"):
+            st.session_state["page"] = "start"
+        return
+
+    # 보여주기 및 응답 수집 (radio)
+    for i, comp in enumerate(items, start=1):
+        st.subheader(f"{i}. {comp}")
+        opts = st.session_state["feature_options"].get(comp, [])
+        key = f"feat_{comp}"
+        # 현재 선택 저장
+        prev = st.session_state.get("feature_answers", {}).get(comp)
+        choice = st.radio("", opts, index=opts.index(prev) if prev in opts else 0, key=key)
+        st.session_state["feature_answers"][comp] = choice
+
+    cols = st.columns(3)
+    with cols[0]:
+        if st.button("제출", key="submit_features"):
+            results = {}
+            all_correct = True
+            for comp in items:
+                chosen = st.session_state.get("feature_answers", {}).get(comp)
+                correct = COMPOUND_INFO.get(comp, {}).get("props", "")
+                correct_flag = (chosen == correct)
+                if not correct_flag:
+                    all_correct = False
+                results[comp] = {"chosen": chosen, "expected": correct, "correct": correct_flag}
+            st.session_state["feature_results"] = results
+            st.session_state["feature_submitted"] = True
+            if all_correct:
+                st.success("모두 정답입니다! 🎉")
+                try:
+                    st.balloons()
+                except Exception:
+                    pass
+            else:
+                st.warning("몇 문제 틀렸습니다. 결과를 확인하세요. ⚠️")
+                try:
+                    st.snow()
+                except Exception:
+                    pass
+    with cols[1]:
+        if st.button("다시 풀기", key="redo_features"):
+            st.session_state["feature_answers"] = {comp: None for comp in items}
+            st.session_state["feature_submitted"] = False
+            if "feature_results" in st.session_state:
+                del st.session_state["feature_results"]
+    with cols[2]:
+        if st.button("처음으로", key="features_to_start"):
+            for k in ["feature_items", "feature_options", "feature_answers", "feature_results", "feature_submitted"]:
+                if k in st.session_state:
+                    del st.session_state[k]
+            st.session_state["page"] = "start"
+
+    if st.session_state.get("feature_submitted") and "feature_results" in st.session_state:
+        st.write("결과:")
+        for comp, info in st.session_state["feature_results"].items():
+            if info["correct"]:
+                st.success(f"{comp} — 정답")
+                info_data = COMPOUND_INFO.get(comp)
+                if info_data:
+                    st.write(f"화학식: {info_data['formula']}")
+                    st.write(f"성질: {info_data['props']}")
+            else:
+                st.error(f"{comp} — 오답. 선택: {info['chosen'] or '선택 없음'} | 정답: {info['expected']}")
+
 def main():
     if "page" not in st.session_state:
         st.session_state["page"] = "start"
 
-    if st.session_state["page"] == "start":
+    page = st.session_state["page"]
+    if page == "start":
         start_page()
-    elif st.session_state["page"] == "examples":
+    elif page == "examples":
         examples_page()
-    elif st.session_state["page"] == "quiz":
+    elif page == "quiz":
         quiz_page()
+    elif page == "features":
+        features_page()
     else:
         st.session_state["page"] = "start"
         start_page()
