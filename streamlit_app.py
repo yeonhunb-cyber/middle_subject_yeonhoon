@@ -64,13 +64,23 @@ COMPOUND_INFO = {
 
 def start_page():
     st.title("화합물 구성원소 퀴즈")
-    st.write("시작 버튼을 눌러 예시 목록 페이지로 이동하세요.")
-    # 응시자 정보 입력란 추가
-    st.text_input("학교", key="school")
-    st.text_input("학년", key="grade")
-    st.text_input("반", key="class_room")
-    st.text_input("이름", key="student_name")
-    if st.button("시작", key="start_btn"):
+    st.write("응시자 정보를 입력하고 시작하세요.")
+
+    # 폼으로 입력을 묶어 제출 시 값이 확실히 저장되도록 함
+    with st.form("start_form", clear_on_submit=False):
+        # 기존 session_state 값을 기본값으로 넣어 로컬 변수에 저장
+        school_val = st.text_input("학교", value=st.session_state.get("school", ""))
+        grade_val = st.text_input("학년", value=st.session_state.get("grade", ""))
+        class_val = st.text_input("반", value=st.session_state.get("class_room", ""))
+        name_val = st.text_input("이름", value=st.session_state.get("student_name", ""))
+        submitted = st.form_submit_button("시작")
+
+    if submitted:
+        # 폼에서 받은 값을 명시적으로 session_state에 저장하고 페이지 이동
+        st.session_state["school"] = school_val
+        st.session_state["grade"] = grade_val
+        st.session_state["class_room"] = class_val
+        st.session_state["student_name"] = name_val
         st.session_state["page"] = "examples"
 
 def examples_page():
@@ -283,14 +293,17 @@ def mcq_page():
 
 def final_page():
     st.header("종합 결과")
-    # 응시자 정보 표시
-    school = st.session_state.get("school", "")
-    grade = st.session_state.get("grade", "")
-    class_room = st.session_state.get("class_room", "")
-    student_name = st.session_state.get("student_name", "")
+
+    # 응시자 정보 표시 (첫 페이지 입력값; 값이 없으면 '입력 없음' 표시)
+    school = st.session_state.get("school") or "입력 없음"
+    grade = st.session_state.get("grade") or "입력 없음"
+    class_room = st.session_state.get("class_room") or "입력 없음"
+    student_name = st.session_state.get("student_name") or "입력 없음"
+
     st.subheader("응시자 정보")
     st.write(f"학교: {school}  |  학년: {grade}  |  반: {class_room}  |  이름: {student_name}")
 
+    # 기존 결과 로직 유지
     quiz_results = st.session_state.get("results", {})
     mcq_results = st.session_state.get("mcq_results", {})
     quiz_total = len(st.session_state.get("quiz_items", []))
@@ -322,17 +335,17 @@ def final_page():
     pct_display = round(pct, 1)
 
     if pct == 100:
-        grade = "Perfect"
+        grade_eval = "Perfect"
     elif pct >= 80:
-        grade = "Excellent"
+        grade_eval = "Excellent"
     elif pct >= 50:
-        grade = "Good"
+        grade_eval = "Good"
     else:
-        grade = "Bad"
+        grade_eval = "Bad"
 
     st.subheader("종합 점수")
     st.write(f"총 정답율: {total_correct} / {total_questions} = {pct_display}%")
-    st.write(f"평가: {grade}")
+    st.write(f"평가: {grade_eval}")
 
 def main():
     if "page" not in st.session_state:
