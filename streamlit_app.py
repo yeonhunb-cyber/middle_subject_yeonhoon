@@ -303,31 +303,13 @@ def final_page():
     st.subheader("응시자 정보")
     st.write(f"학교: {school}  |  학년: {grade}  |  반: {class_room}  |  이름: {student_name}")
 
-    # 기존 결과 로직 유지
+    # 결과 데이터 로드
     quiz_results = st.session_state.get("results", {})
     mcq_results = st.session_state.get("mcq_results", {})
     quiz_total = len(st.session_state.get("quiz_items", []))
     mcq_total = len(st.session_state.get("mcq_items", []))
 
-    st.subheader("1번 시험 결과")
-    if quiz_total == 0:
-        st.write("1번 시험 결과가 없습니다.")
-    else:
-        quiz_correct = sum(1 for v in quiz_results.values() if v.get("correct"))
-        st.write(f"정답 {quiz_correct} / {quiz_total}")
-        for comp, info in quiz_results.items():
-            st.write(f"- {comp}: {'정답' if info.get('correct') else '오답'} (정답: {', '.join(info.get('expected', []))})")
-
-    st.subheader("2번 시험 결과")
-    if mcq_total == 0:
-        st.write("2번 시험 결과가 없습니다.")
-    else:
-        mcq_correct = sum(1 for v in mcq_results.values() if v.get("correct"))
-        st.write(f"정답 {mcq_correct} / {mcq_total}")
-        for comp, info in mcq_results.items():
-            st.write(f"- {comp}: {'정답' if info.get('correct') else '오답'} (정답: {info.get('expected')})")
-
-    # 총정답율 계산 및 평가
+    # 총정답율 계산 및 평가 — 인적사항 바로 아래에 표시
     total_questions = quiz_total + mcq_total
     total_correct = (sum(1 for v in quiz_results.values() if v.get("correct")) +
                      sum(1 for v in mcq_results.values() if v.get("correct")))
@@ -346,6 +328,25 @@ def final_page():
     st.subheader("종합 점수")
     st.write(f"총 정답율: {total_correct} / {total_questions} = {pct_display}%")
     st.write(f"평가: {grade_eval}")
+
+    # 개별 시험 결과 표시
+    st.subheader("1번 시험 결과")
+    if quiz_total == 0:
+        st.write("1번 시험 결과가 없습니다.")
+    else:
+        quiz_correct = sum(1 for v in quiz_results.values() if v.get("correct"))
+        st.write(f"정답 {quiz_correct} / {quiz_total}")
+        for comp, info in quiz_results.items():
+            st.write(f"- {comp}: {'정답' if info.get('correct') else '오답'} (정답: {', '.join(info.get('expected', []))})")
+
+    st.subheader("2번 시험 결과")
+    if mcq_total == 0:
+        st.write("2번 시험 결과가 없습니다.")
+    else:
+        mcq_correct = sum(1 for v in mcq_results.values() if v.get("correct"))
+        st.write(f"정답 {mcq_correct} / {mcq_total}")
+        for comp, info in mcq_results.items():
+            st.write(f"- {comp}: {'정답' if info.get('correct') else '오답'} (정답: {info.get('expected')})")
 
 def main():
     if "page" not in st.session_state:
