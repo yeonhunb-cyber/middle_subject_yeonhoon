@@ -65,6 +65,11 @@ COMPOUND_INFO = {
 def start_page():
     st.title("화합물 구성원소 퀴즈")
     st.write("시작 버튼을 눌러 예시 목록 페이지로 이동하세요.")
+    # 응시자 정보 입력란 추가
+    st.text_input("학교", key="school")
+    st.text_input("학년", key="grade")
+    st.text_input("반", key="class_room")
+    st.text_input("이름", key="student_name")
     if st.button("시작", key="start_btn"):
         st.session_state["page"] = "examples"
 
@@ -278,6 +283,14 @@ def mcq_page():
 
 def final_page():
     st.header("종합 결과")
+    # 응시자 정보 표시
+    school = st.session_state.get("school", "")
+    grade = st.session_state.get("grade", "")
+    class_room = st.session_state.get("class_room", "")
+    student_name = st.session_state.get("student_name", "")
+    st.subheader("응시자 정보")
+    st.write(f"학교: {school}  |  학년: {grade}  |  반: {class_room}  |  이름: {student_name}")
+
     quiz_results = st.session_state.get("results", {})
     mcq_results = st.session_state.get("mcq_results", {})
     quiz_total = len(st.session_state.get("quiz_items", []))
