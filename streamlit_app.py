@@ -78,7 +78,10 @@ def examples_page():
         for c in range(cols_per_row):
             idx = r * cols_per_row + c
             if idx < len(EXAMPLES):
-                cols[c].write(EXAMPLES[idx])
+                name = EXAMPLES[idx]
+                formula = COMPOUND_INFO.get(name, {}).get("formula", "")
+                label = f"{name} ({formula})" if formula else name
+                cols[c].write(label)
             else:
                 cols[c].write("")
     st.write("---")
@@ -102,9 +105,7 @@ def quiz_page():
     st.header("시험(1/2) — 구성 원소 선택 (주기 배열 수정, 8문제)")
     quiz_items = st.session_state.get("quiz_items", [])
     if not quiz_items:
-        st.write("선택된 문제가 없습니다. 처음으로 돌아가세요.")
-        if st.button("처음으로", key="quiz_no_items"):
-            st.session_state["page"] = "start"
+        st.write("선택된 문제가 없습니다. 예시 페이지에서 시험을 시작하세요.")
         return
 
     periods = [1, 2, 3, 4]
@@ -150,9 +151,10 @@ def quiz_page():
             st.session_state["results"] = results
             st.session_state["submitted"] = True
 
+            # 결과 즉시 출력 (이팩트 제거)
             for compound, info in results.items():
                 if info["correct"]:
-                    st.success(f"{compound} — 정답입니다! 🎉")
+                    st.success(f"{compound} — 정답입니다!")
                     info_data = COMPOUND_INFO.get(compound)
                     if info_data:
                         st.write(f"화학식: {info_data['formula']}")
@@ -160,50 +162,32 @@ def quiz_page():
                 else:
                     st.error(f"{compound} — 오답. 선택: {', '.join(info['chosen']) if info['chosen'] else '선택 없음'} | 정답: {', '.join(info['expected']) if info['expected'] else '정답 미등록'}")
 
-            if all_correct:
-                try:
-                    st.balloons()
-                except Exception:
-                    pass
-            else:
-                try:
-                    st.snow()
-                except Exception:
-                    pass
-
+    # '다시 풀기' 칸은 비워둠
     with cols[1]:
-        if st.button("다시 풀기(재선택)", key="redo_exam"):
-            for compound in quiz_items:
-                safe = "".join(ch if ch.isalnum() else "_" for ch in compound)
-                for idx in range(1, len(ELEMENTS_POS) + 1):
-                    key = f"chk_{safe}_{idx}"
-                    st.session_state[key] = False
-            st.session_state["selections"] = {q: [] for q in quiz_items}
-            st.session_state["submitted"] = False
-            st.session_state["results"] = {}
-    with cols[2]:
-        # 다음 페이지 버튼은 오직 제출 후에만 보이도록 변경
-        if st.session_state.get("submitted"):
-            if st.button("다음 페이지 — 특징 맞추기 문제 (5지선다, 8문제)", key="to_mcq"):
-                st.session_state["mcq_items"] = random.sample(EXAMPLES, k=8)
-                st.session_state["mcq_answers"] = {q: None for q in st.session_state["mcq_items"]}
-                st.session_state["mcq_submitted"] = False
-                st.session_state["page"] = "mcq"
-        else:
-            # 제출 전에는 빈 자리로 둠
-            st.write("")
+        st.write("")
+
+    # 다음 페이지 버튼은 제출 후에만, 한줄로 표시
+    if st.session_state.get("submitted"):
+        if st.button("다음 페이지 — 특징 맞추기 문제 (5지선다, 8문제)", key="to_mcq"):
+            # MCQ 문제 준비를 session_state에 고정해서 페이지 전환 후 보기가 바뀌지 않도록 함
+            st.session_state["mcq_items"] = random.sample(EXAMPLES, k=8)
+            st.session_state["mcq_answers"] = {q: None for q in st.session_state["mcq_items"]}
+            all_props = [info["props"] for info in COMPOUND_INFO.values()]
+            mcq_options = {}
+            for comp in st.session_state["mcq_items"]:
+                correct_prop = COMPOUND_INFO.get(comp, {}).get("props", "정보 없음")
+                other_props = [p for p in all_props if p != correct_prop]
+                distractors = random.sample(other_props, k=min(4, len(other_props)))
+                opts = distractors + [correct_prop]
+                random.shuffle(opts)
+                mcq_options[comp] = opts
+            st.session_state["mcq_options"] = mcq_options
+            st.session_state["mcq_submitted"] = False
+            st.session_state["page"] = "mcq"
+
+    # '처음으로' 버튼 삭제 — cols[3] 빈칸으로 유지
     with cols[3]:
-        if st.button("처음으로", key="quiz_to_start"):
-            for compound in st.session_state.get("quiz_items", []):
-                safe = "".join(ch if ch.isalnum() else "_" for ch in compound)
-                for idx in range(1, len(ELEMENTS_POS) + 1):
-                    key = f"chk_{safe}_{idx}"
-                    if key in st.session_state:
-                        del st.session_state[key]
-            for k in ["quiz_items", "selections", "submitted", "results"]:
-                if k in st.session_state:
-                    del st.session_state[k]
-            st.session_state["page"] = "start"
+        st.write("")
 
     if st.session_state.get("submitted") and "results" in st.session_state:
         st.write("요약:")
@@ -213,38 +197,62 @@ def quiz_page():
             else:
                 st.error(f"{compound}: 오답 (정답: {', '.join(info['expected'])})")
 
+        # 제출 결과 하단에 한 줄짜리 '다음 페이지' 버튼 표시
+        st.write("")  # 간격
+        if st.button("다음 페이지 — 특징 맞추기 문제 (5지선다, 8문제)", key="to_mcq_after_results"):
+            # MCQ 문제 준비를 session_state에 고정해서 페이지 전환 후 보기가 바뀌지 않도록 함
+            st.session_state["mcq_items"] = random.sample(EXAMPLES, k=8)
+            st.session_state["mcq_answers"] = {q: None for q in st.session_state["mcq_items"]}
+            all_props = [info["props"] for info in COMPOUND_INFO.values()]
+            mcq_options = {}
+            for comp in st.session_state["mcq_items"]:
+                correct_prop = COMPOUND_INFO.get(comp, {}).get("props", "정보 없음")
+                other_props = [p for p in all_props if p != correct_prop]
+                distractors = random.sample(other_props, k=min(4, len(other_props)))
+                opts = distractors + [correct_prop]
+                random.shuffle(opts)
+                mcq_options[comp] = opts
+            st.session_state["mcq_options"] = mcq_options
+            st.session_state["mcq_submitted"] = False
+            st.session_state["page"] = "mcq"
+
 def mcq_page():
     st.header("시험(2/2) — 특징 맞추기 (5지선다, 8문제)")
     mcq_items = st.session_state.get("mcq_items", [])
     if not mcq_items:
-        st.write("선택된 문제가 없습니다. 처음으로 돌아가세요.")
-        if st.button("처음으로", key="mcq_no_items"):
-            st.session_state["page"] = "start"
+        st.write("선택된 문제가 없습니다. 예시 페이지에서 시험을 시작하세요.")
         return
 
-    # 준비: 모든 가능한 props 목록 (중복 제거)
-    all_props = [info["props"] for info in COMPOUND_INFO.values()]
-    # 각 문제 생성: 보기는 정답 props + 4개의 다른 props (중복x)
-    for compound in mcq_items:
-        st.subheader(compound)
-        correct_prop = COMPOUND_INFO.get(compound, {}).get("props", "정보 없음")
-        # 후보군에서 정답 제외 후 샘플링
-        other_props = [p for p in all_props if p != correct_prop]
-        # 만약 후보가 부족하면 중복 허용하지 않고 가능한 만큼만 사용
-        distractors = random.sample(other_props, k=min(4, len(other_props)))
-        options = distractors + [correct_prop]
-        random.shuffle(options)
-        key = f"mcq_{compound}"
-        # 라디오 버튼으로 선택
-        choice = st.radio("다음 중 해당 물질의 성질로 옳은 것은?", options, key=key)
-        st.session_state["mcq_answers"][compound] = choice
+    # 옵션을 한 번만 생성/사용하도록 session_state에서 관리 (재렌더 시 순서/내용 고정)
+    if "mcq_options" not in st.session_state:
+        all_props = [info["props"] for info in COMPOUND_INFO.values()]
+        mcq_options = {}
+        for comp in mcq_items:
+            correct_prop = COMPOUND_INFO.get(comp, {}).get("props", "정보 없음")
+            other_props = [p for p in all_props if p != correct_prop]
+            distractors = random.sample(other_props, k=min(4, len(other_props)))
+            opts = distractors + [correct_prop]
+            random.shuffle(opts)
+            mcq_options[comp] = opts
+        st.session_state["mcq_options"] = mcq_options
+
+    # 각 문제 출력: 저장된 옵션 사용, 라디오의 key를 고유하게 설정
+    for i, compound in enumerate(mcq_items, start=1):
+        formula = COMPOUND_INFO.get(compound, {}).get("formula", "")
+        st.subheader(f"{i}. {compound} — {formula}")
+        opts = st.session_state["mcq_options"].get(compound, [])
+        key = f"mcq_sel_{compound}"
+        st.radio("다음 중 해당 물질의 성질로 옳은 것은?", opts, key=key)
+        sel = st.session_state.get(key)
+        st.session_state.setdefault("mcq_answers", {})[compound] = sel
 
     cols = st.columns(3)
     with cols[0]:
         if st.button("제출", key="mcq_submit"):
             results = {}
             correct_count = 0
-            for compound, chosen in st.session_state["mcq_answers"].items():
+            for compound in mcq_items:
+                chosen = st.session_state.get(f"mcq_sel_{compound}")
                 correct_prop = COMPOUND_INFO.get(compound, {}).get("props", "정보 없음")
                 is_correct = (chosen == correct_prop)
                 if is_correct:
@@ -253,20 +261,65 @@ def mcq_page():
             st.session_state["mcq_results"] = results
             st.session_state["mcq_submitted"] = True
 
-            # 세레머니
-            if correct_count == len(mcq_items):
-                st.success(f"모두 정답입니다! ({correct_count}/{len(mcq_items)}) 🎉")
-                try:
-                    st.balloons()
-                except Exception:
-                    pass
+            # 제출 후 즉시 축하 이팩트 제거하고 결과 요약만 표시
+            st.info(f"정답 수: {correct_count}/{len(mcq_items)}")
+
+    # 제출 후 결과 요약과 '결과 보기' 버튼 (1/2 시험 합산 화면으로 이동)
+    if st.session_state.get("mcq_submitted") and "mcq_results" in st.session_state:
+        st.write("문제별 결과:")
+        for compound, info in st.session_state["mcq_results"].items():
+            if info["correct"]:
+                st.success(f"{compound}: 정답 — {info['expected']}")
             else:
-                st.info(f"정답 수: {correct_count}/{len(mcq_items)}")
-                try:
-                    st.snow()
-                except Exception:
-                    pass
-    # NOTE: 두번째 페이지에서 '다시 풀기'와 '처음으로' 버튼 제거 (요청대로)
+                st.error(f"{compound}: 오답 — 선택: {info['chosen'] or '없음'} | 정답: {info['expected']}")
+
+        if st.button("결과 보기 (모든 시험 통합)", key="view_final_results"):
+            st.session_state["page"] = "final"
+
+def final_page():
+    st.header("종합 결과")
+    quiz_results = st.session_state.get("results", {})
+    mcq_results = st.session_state.get("mcq_results", {})
+    quiz_total = len(st.session_state.get("quiz_items", []))
+    mcq_total = len(st.session_state.get("mcq_items", []))
+
+    st.subheader("1번 시험 결과")
+    if quiz_total == 0:
+        st.write("1번 시험 결과가 없습니다.")
+    else:
+        quiz_correct = sum(1 for v in quiz_results.values() if v.get("correct"))
+        st.write(f"정답 {quiz_correct} / {quiz_total}")
+        for comp, info in quiz_results.items():
+            st.write(f"- {comp}: {'정답' if info.get('correct') else '오답'} (정답: {', '.join(info.get('expected', []))})")
+
+    st.subheader("2번 시험 결과")
+    if mcq_total == 0:
+        st.write("2번 시험 결과가 없습니다.")
+    else:
+        mcq_correct = sum(1 for v in mcq_results.values() if v.get("correct"))
+        st.write(f"정답 {mcq_correct} / {mcq_total}")
+        for comp, info in mcq_results.items():
+            st.write(f"- {comp}: {'정답' if info.get('correct') else '오답'} (정답: {info.get('expected')})")
+
+    # 총정답율 계산 및 평가
+    total_questions = quiz_total + mcq_total
+    total_correct = (sum(1 for v in quiz_results.values() if v.get("correct")) +
+                     sum(1 for v in mcq_results.values() if v.get("correct")))
+    pct = (total_correct / total_questions * 100) if total_questions > 0 else 0
+    pct_display = round(pct, 1)
+
+    if pct == 100:
+        grade = "Perfect"
+    elif pct >= 80:
+        grade = "Excellent"
+    elif pct >= 50:
+        grade = "Good"
+    else:
+        grade = "Bad"
+
+    st.subheader("종합 점수")
+    st.write(f"총 정답율: {total_correct} / {total_questions} = {pct_display}%")
+    st.write(f"평가: {grade}")
 
 def main():
     if "page" not in st.session_state:
@@ -279,8 +332,10 @@ def main():
         examples_page()
     elif page == "quiz":
         quiz_page()
-    elif page == "features":
-        features_page()
+    elif page == "mcq":
+        mcq_page()
+    elif page == "final":
+        final_page()
     else:
         st.session_state["page"] = "start"
         start_page()
