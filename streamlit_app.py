@@ -253,7 +253,7 @@ def _nowrap(sym: str) -> str:
     return "\u2060".join(list(sym))
 
 def quiz_page():
-    st.header("해당 물질의 구성 원소를 모두 선택하세요. (8문제 문항)")
+    st.header("1. 해당 물질의 구성 원소를 모두 선택하세요. (8문제 문항)")
     quiz_items = st.session_state.get("quiz_items", [])
     if not quiz_items:
         st.write("선택된 문제가 없습니다. 예시 페이지에서 시험을 시작하세요.")
@@ -347,15 +347,7 @@ def quiz_page():
             st.session_state["mcq_submitted"] = False
             st.session_state["page"] = "mcq"
 
-    if st.session_state.get("submitted") and "results" in st.session_state:
-        st.write("---")
-        st.write("1번 시험 요약:")
-        for compound, info in st.session_state["results"].items():
-            if info["correct"]:
-                st.success(f"{compound}: 정답")
-            else:
-                st.error(f"{compound}: 오답 (정답: {', '.join(info['expected'])})")
-
+    
         # 제출 결과 하단에 한 줄짜리 '다음 페이지' 버튼 표시
         st.write("")  # 간격
         if st.button("다음 페이지 — 특징 맞추기 문제 (5지선다, 8문제)", key="to_mcq_after_results"):
