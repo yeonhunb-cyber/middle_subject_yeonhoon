@@ -253,7 +253,7 @@ def _nowrap(sym: str) -> str:
     return "\u2060".join(list(sym))
 
 def quiz_page():
-    st.header("시험(1/2) — 구성 원소 선택 (주기 배열 수정, 8문제)")
+    st.header("해당 물질의 구성 원소를 모두 선택하세요. (8문제 문항)")
     quiz_items = st.session_state.get("quiz_items", [])
     if not quiz_items:
         st.write("선택된 문제가 없습니다. 예시 페이지에서 시험을 시작하세요.")
