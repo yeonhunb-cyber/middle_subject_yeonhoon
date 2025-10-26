@@ -253,7 +253,7 @@ def _nowrap(sym: str) -> str:
     return "\u2060".join(list(sym))
 
 def quiz_page():
-    st.header("1. 해당 물질의 구성 원소를 모두 선택하세요. (8문제 문항)")
+    st.header("1. 해당 물질의 구성 원소를 모두 선택하세요. (8문항)")
     quiz_items = st.session_state.get("quiz_items", [])
     if not quiz_items:
         st.write("선택된 문제가 없습니다. 예시 페이지에서 시험을 시작하세요.")
@@ -346,34 +346,6 @@ def quiz_page():
             st.session_state["mcq_options"] = mcq_options
             st.session_state["mcq_submitted"] = False
             st.session_state["page"] = "mcq"
-
-    
-        # 제출 결과 하단에 한 줄짜리 '다음 페이지' 버튼 표시
-        st.write("")  # 간격
-        if st.button("다음 페이지 — 특징 맞추기 문제 (5지선다, 8문제)", key="to_mcq_after_results"):
-            # 이전 버튼과 동일한 MCQ 문제 준비 로직 사용
-            st.session_state["mcq_items"] = random.sample(EXAMPLES, k=8)
-            st.session_state["mcq_answers"] = {q: None for q in st.session_state["mcq_items"]}
-            
-            all_props = []
-            for info in COMPOUND_DATA.values():
-                all_props.extend(info["props_list"]) 
-
-            mcq_options = {}
-            for comp in st.session_state["mcq_items"]:
-                correct_props_list = COMPOUND_DATA.get(comp, {}).get("props_list", ["정보 없음"])
-                correct_prop = random.choice(correct_props_list) 
-
-                other_props = [p for p in all_props if p != correct_prop]
-                distractors = random.sample(other_props, k=min(4, len(other_props)))
-                opts = distractors + [correct_prop]
-                random.shuffle(opts)
-                mcq_options[comp] = opts
-                
-            st.session_state["mcq_options"] = mcq_options
-            st.session_state["mcq_submitted"] = False
-            st.session_state["page"] = "mcq"
-
 
 # --- 2번 퀴즈 페이지 (MCQ) ---
 def mcq_page():
